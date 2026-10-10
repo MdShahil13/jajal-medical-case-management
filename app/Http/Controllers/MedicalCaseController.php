@@ -15,9 +15,13 @@ class MedicalCaseController extends Controller
 {
     public function index(Request $request): Response
     {
-        $this->authorize('viewAny', MedicalCase::class);
+        abort_unless(
+            $request->user()->can('viewAny', MedicalCase::class),
+            403
+        );
 
-        $query = MedicalCase::query()->with(['assignedUser:id,name', 'creator:id,name']);
+        $query = MedicalCase::query()
+            ->with(['assignedUser:id,name', 'creator:id,name']);
 
         if ($search = $request->string('search')->trim()->toString()) {
             $query->where(function ($q) use ($search) {
@@ -38,7 +42,14 @@ class MedicalCaseController extends Controller
         $sort = $request->query('sort', 'created_at');
         $direction = $request->query('direction', 'desc');
 
-        if (! in_array($sort, ['case_number', 'patient_name', 'status', 'priority', 'opened_at', 'created_at'], true)) {
+        if (! in_array($sort, [
+            'case_number',
+            'patient_name',
+            'status',
+            'priority',
+            'opened_at',
+            'created_at',
+        ], true)) {
             $sort = 'created_at';
         }
 
@@ -46,28 +57,45 @@ class MedicalCaseController extends Controller
             $direction = 'desc';
         }
 
-        $cases = $query->orderBy($sort, $direction)
+        $cases = $query
+            ->orderBy($sort, $direction)
             ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('medical-cases/index', [
             'cases' => $cases,
-            'filters' => $request->only(['search', 'status', 'priority', 'sort', 'direction']),
-            'canManage' => $request->user()->can('create', MedicalCase::class),
+            'filters' => $request->only([
+                'search',
+                'status',
+                'priority',
+                'sort',
+                'direction',
+            ]),
+            'canManage' => $request->user()->can(
+                'create',
+                MedicalCase::class
+            ),
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
-        $this->authorize('create', MedicalCase::class);
+        abort_unless(
+            $request->user()->can('create', MedicalCase::class),
+            403
+        );
 
         return Inertia::render('medical-cases/create', [
-            'users' => User::query()->select('id', 'name')->orderBy('name')->get(),
+            'users' => User::query()
+                ->select('id', 'name')
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 
-    public function store(StoreMedicalCaseRequest $request): RedirectResponse
-    {
+    public function store(
+        StoreMedicalCaseRequest $request
+    ): RedirectResponse {
         MedicalCase::create([
             ...$request->validated(),
             'created_by' => $request->user()->id,
@@ -77,25 +105,44 @@ class MedicalCaseController extends Controller
             ->with('success', 'Medical case created successfully.');
     }
 
-    public function show(MedicalCase $medicalCase): Response
-    {
-        $this->authorize('view', $medicalCase);
+    public function show(
+        Request $request,
+        MedicalCase $medicalCase
+    ): Response {
+        abort_unless(
+            $request->user()->can('view', $medicalCase),
+            403
+        );
 
-        $medicalCase->load(['assignedUser:id,name', 'creator:id,name']);
+        $medicalCase->load([
+            'assignedUser:id,name',
+            'creator:id,name',
+        ]);
 
         return Inertia::render('medical-cases/show', [
             'medicalCase' => $medicalCase,
-            'canManage' => request()->user()->can('update', $medicalCase),
+            'canManage' => $request->user()->can(
+                'update',
+                $medicalCase
+            ),
         ]);
     }
 
-    public function edit(MedicalCase $medicalCase): Response
-    {
-        $this->authorize('update', $medicalCase);
+    public function edit(
+        Request $request,
+        MedicalCase $medicalCase
+    ): Response {
+        abort_unless(
+            $request->user()->can('update', $medicalCase),
+            403
+        );
 
         return Inertia::render('medical-cases/edit', [
             'medicalCase' => $medicalCase,
-            'users' => User::query()->select('id', 'name')->orderBy('name')->get(),
+            'users' => User::query()
+                ->select('id', 'name')
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 
@@ -109,9 +156,14 @@ class MedicalCaseController extends Controller
             ->with('success', 'Medical case updated successfully.');
     }
 
-    public function destroy(MedicalCase $medicalCase): RedirectResponse
-    {
-        $this->authorize('delete', $medicalCase);
+    public function destroy(
+        Request $request,
+        MedicalCase $medicalCase
+    ): RedirectResponse {
+        abort_unless(
+            $request->user()->can('delete', $medicalCase),
+            403
+        );
 
         $medicalCase->delete();
 
