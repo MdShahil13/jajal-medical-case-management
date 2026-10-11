@@ -2,7 +2,7 @@
 
 ## Overview
 
-The application uses MySQL and Laravel Eloquent ORM. Its main tables are `users` and `medical_cases`, with Laravel's standard authentication and migration infrastructure.
+The application uses MySQL and Laravel Eloquent ORM. Its main application tables are `users` and `medical_cases`. Laravel and Sanctum also use supporting tables for authentication, sessions, caching, queues, and API tokens as configured by the application.
 
 ## Users
 
@@ -14,44 +14,59 @@ The `users` table stores application accounts.
 | `name` | User's name |
 | `email` | Unique login email |
 | `password` | Hashed password |
-| `role` | Authorization role, such as `admin` or `viewer` |
+| `role` | Application role, such as `admin` or `viewer` |
 | `created_at`, `updated_at` | Timestamps |
 
 ## Medical Cases
 
-The `medical_cases` table stores case-management records.
+The `medical_cases` table stores medical case records.
 
 | Field | Purpose |
 |---|---|
-| `id` | Primary key |
+| `id` | Auto-incrementing primary key |
 | `case_number` | Unique case identifier |
-| `patient_name` | Fictitious patient name |
-| `patient_email` | Optional contact email |
-| `patient_phone` | Optional contact phone |
-| `condition` | Medical condition or case category |
-| `description` | Optional case description |
-| `status` | Case status: `open`, `in_progress`, or `closed` |
-| `priority` | Priority: `low`, `medium`, or `high` |
-| `opened_at` | Optional opening date |
-| `closed_at` | Optional closing date |
-| `assigned_to` | Optional foreign key to the assigned user |
+| `patient_reference` | Fictitious patient identifier |
+| `surgeon_name` | Surgeon associated with the case |
+| `implant_type` | Type of implant |
+| `status` | Draft, Planning, In Review, Approved, Completed, or Cancelled |
+| `priority` | Low, Medium, or High |
+| `surgery_date` | Optional planned surgery date |
 | `created_by` | Foreign key to the user who created the case |
+| `assigned_to` | Optional foreign key to the assigned user, retained from the original schema |
 | `created_at`, `updated_at` | Timestamps |
+
+### Legacy Fields
+
+The database retains the following legacy columns from the original schema:
+
+- `patient_name`
+- `patient_email`
+- `patient_phone`
+- `condition`
+- `description`
+- `opened_at`
+- `closed_at`
+
+The `patient_name` and `condition` fields were made nullable to support the newer case structure. Other legacy fields remain in the database for compatibility with existing records and code. The current assignment interface uses patient reference, surgeon name, implant type, and surgery date.
 
 ## Relationships
 
-- A medical case belongs to the user assigned to it through `assigned_to`; this relationship is optional.
-- A medical case belongs to the user who created it through `created_by`.
-- A user can be assigned multiple cases.
+- A medical case belongs to its creator through `created_by`.
+- A medical case may belong to an assigned user through `assigned_to`.
 - A user can create multiple cases.
+- A user can be assigned multiple cases.
 
-## Indexes and Constraints
+## Constraints and Indexes
 
-- `case_number` is unique.
-- `assigned_to` references `users.id` and becomes null if the assigned user is deleted.
-- `created_by` references `users.id`; deleting the creator is restricted by the configured cascading behavior.
-- The schema includes indexes for status and priority, and for `opened_at`.
+- `case_number` has a unique constraint.
+- `created_by` references `users.id`; the configured foreign key uses cascading deletion.
+- `assigned_to` references `users.id` and becomes null when the assigned user is deleted.
+- The original schema includes indexes for status and priority, and for `opened_at`.
+
+Refer to the actual migration files in `database/migrations/` for the authoritative schema and foreign-key behavior.
 
 ## Seed Data
 
-The seeders create demo Admin and Viewer accounts and 20 fictitious medical cases. Never use real patient data in demonstration environments.
+The development seeders provide Admin and Viewer demo accounts and 20 fictitious medical cases. Seeders may update existing demo records, depending on their implementation.
+
+Never use real patient information in a demonstration environment.
