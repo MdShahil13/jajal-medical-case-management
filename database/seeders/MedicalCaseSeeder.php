@@ -13,35 +13,48 @@ class MedicalCaseSeeder extends Seeder
         $admin = User::where('email', 'admin@example.com')->firstOrFail();
         $viewer = User::where('email', 'viewer@example.com')->firstOrFail();
 
-        $conditions = [
-            'General Checkup',
-            'Cardiology Review',
-            'Orthopedic Consultation',
-            'Diabetes Follow-up',
-            'Respiratory Assessment',
+        $implantTypes = [
+            'Patient-Specific Cranial Implant',
+            'Custom Mandibular Implant',
+            'Orthopedic Bone Plate',
+            'Spinal Implant',
+            'Patient-Specific Hip Implant',
         ];
 
-        $priorities = ['low', 'medium', 'high'];
-        $statuses = ['open', 'in_progress', 'closed'];
+        $surgeons = [
+            'Dr. A. Patel',
+            'Dr. R. Shah',
+            'Dr. K. Mehta',
+            'Dr. S. Desai',
+            'Dr. N. Joshi',
+        ];
+
+        $statuses = [
+            'Draft',
+            'Planning',
+            'In Review',
+            'Approved',
+            'Completed',
+            'Cancelled',
+        ];
+
+        $priorities = ['Low', 'Medium', 'High'];
 
         for ($i = 1; $i <= 20; $i++) {
-            $status = $statuses[($i - 1) % count($statuses)];
-
             MedicalCase::updateOrCreate(
                 ['case_number' => sprintf('CASE-%04d', $i)],
                 [
-                    'patient_name' => "Demo Patient {$i}",
-                    'patient_email' => "patient{$i}@example.com",
-                    'patient_phone' => null,
-                    'condition' => $conditions[($i - 1) % count($conditions)],
-                    'description' => "Fictional case record {$i} for application testing.",
-                    'status' => $status,
+                    'patient_reference' => sprintf('PAT-%04d', $i),
+                    'surgeon_name' => $surgeons[($i - 1) % count($surgeons)],
+                    'implant_type' => $implantTypes[($i - 1) % count($implantTypes)],
+                    'status' => $statuses[($i - 1) % count($statuses)],
                     'priority' => $priorities[($i - 1) % count($priorities)],
-                    'opened_at' => now()->subDays($i)->toDateString(),
-                    'closed_at' => $status === 'closed'
-                        ? now()->subDays(max(0, $i - 1))->toDateString()
-                        : null,
-                    'assigned_to' => $i % 2 === 0 ? $admin->id : $viewer->id,
+                    'surgery_date' => now()
+                        ->addDays($i)
+                        ->toDateString(),
+                    'assigned_to' => $i % 2 === 0
+                        ? $admin->id
+                        : $viewer->id,
                     'created_by' => $admin->id,
                 ]
             );

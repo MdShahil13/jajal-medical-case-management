@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use App\Models\MedicalCase;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -12,8 +11,7 @@ class UpdateMedicalCaseRequest extends FormRequest
     {
         $case = $this->route('medical_case');
 
-        return $case instanceof MedicalCase
-            && ($this->user()?->can('update', $case) ?? false);
+        return $case && ($this->user()?->can('update', $case) ?? false);
     }
 
     public function rules(): array
@@ -22,20 +20,17 @@ class UpdateMedicalCaseRequest extends FormRequest
 
         return [
             'case_number' => [
-                'required',
-                'string',
-                'max:50',
-                Rule::unique('medical_cases', 'case_number')->ignore($case),
+                'required', 'string', 'max:255',
+                Rule::unique('medical_cases', 'case_number')->ignore($case?->id),
             ],
-            'patient_name' => ['required', 'string', 'max:255'],
-            'patient_email' => ['nullable', 'email', 'max:255'],
-            'patient_phone' => ['nullable', 'string', 'max:30'],
-            'condition' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:5000'],
-            'status' => ['required', Rule::in(['open', 'in_progress', 'closed'])],
-            'priority' => ['required', Rule::in(['low', 'medium', 'high'])],
-            'opened_at' => ['nullable', 'date'],
-            'closed_at' => ['nullable', 'date', 'after_or_equal:opened_at'],
+            'patient_reference' => ['required', 'string', 'max:255'],
+            'surgeon_name' => ['required', 'string', 'max:255'],
+            'implant_type' => ['required', 'string', 'max:255'],
+            'status' => ['required', Rule::in([
+                'Draft', 'Planning', 'In Review', 'Approved', 'Completed', 'Cancelled',
+            ])],
+            'priority' => ['required', Rule::in(['Low', 'Medium', 'High'])],
+            'surgery_date' => ['nullable', 'date'],
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
         ];
     }

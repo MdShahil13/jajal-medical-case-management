@@ -2,42 +2,50 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\LoginRequest;
-use Illuminate\Http\RedirectResponse;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Inertia\Inertia;
-use Inertia\Response;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
+use App\Models\User;
 
 class AuthController extends Controller
 {
-    public function showLogin(): Response
+    public function login(Request $request): JsonResponse
     {
-        return Inertia::render('auth/login');
-    }
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
+        ]);
 
-    public function login(LoginRequest $request): RedirectResponse
-    {
-        $credentials = $request->validated();
+        $user = User::where('email', $validated['email'])->first();
 
-        if (! Auth::attempt($credentials)) {
-            return back()
-                ->withErrors(['email' => 'The supplied credentials are incorrect.'])
-                ->onlyInput('email');
+        if (! $user || ! Hash::check($validated['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'email' => ['The provided credentials are incorrect.'],
+            ]);
         }
 
-        $request->session()->regenerate();
+        $token = $user->createToken('medical-case-api')->plainTextToken;
 
-        return redirect()->intended(route('medical-cases.index'));
+        return response()->json([
+            'success' => true,
+            'message' => 'Login successful.',
+            'data' => [
+                'user' => $user->only('id', 'name', 'email', 'role'),
+                'token' => $token,
+            ],
+        ], 200);
     }
 
-    public function logout(Request $request): RedirectResponse
+    public function logout(Request $request): JsonResponse
     {
-        Auth::logout();
+        $request->user()->currentAccessToken()?->delete();
 
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return redirect()->route('login');
+        return response()->json([
+            'success' => true,
+            'message' => 'Logout successful.',
+            'data' => null,
+        ]);
     }
 }

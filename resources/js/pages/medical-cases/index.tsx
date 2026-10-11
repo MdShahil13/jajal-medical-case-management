@@ -1,16 +1,18 @@
-
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 
 type MedicalCase = {
     id: number;
     case_number: string;
-    patient_name: string;
-    condition: string;
+    patient_reference: string;
+    surgeon_name: string;
+    implant_type: string;
     status: string;
     priority: string;
-    opened_at: string | null;
+    surgery_date: string | null;
+    created_at: string;
     assigned_user?: { id: number; name: string } | null;
+    creator?: { id: number; name: string } | null;
 };
 
 type PaginatedCases = {
@@ -23,8 +25,17 @@ type PaginatedCases = {
     links: { url: string | null; label: string; active: boolean }[];
 };
 
+type DashboardStats = {
+    total: number;
+    planning: number;
+    inReview: number;
+    approved: number;
+    completed: number;
+};
+
 type Props = {
     cases: PaginatedCases;
+    dashboard: DashboardStats;
     filters: {
         search?: string;
         status?: string;
@@ -35,26 +46,35 @@ type Props = {
     canManage: boolean;
 };
 
+const statuses = [
+    'Draft',
+    'Planning',
+    'In Review',
+    'Approved',
+    'Completed',
+    'Cancelled',
+];
+
+const priorities = ['Low', 'Medium', 'High'];
+
 const statusStyles: Record<string, string> = {
-    open: 'bg-blue-100 text-blue-700',
-    in_progress: 'bg-amber-100 text-amber-700',
-    closed: 'bg-emerald-100 text-emerald-700',
+    Draft: 'bg-slate-100 text-slate-700',
+    Planning: 'bg-blue-100 text-blue-700',
+    'In Review': 'bg-amber-100 text-amber-700',
+    Approved: 'bg-violet-100 text-violet-700',
+    Completed: 'bg-emerald-100 text-emerald-700',
+    Cancelled: 'bg-red-100 text-red-700',
 };
 
 const priorityStyles: Record<string, string> = {
-    low: 'bg-slate-100 text-slate-700',
-    medium: 'bg-orange-100 text-orange-700',
-    high: 'bg-red-100 text-red-700',
+    Low: 'bg-slate-100 text-slate-700',
+    Medium: 'bg-orange-100 text-orange-700',
+    High: 'bg-red-100 text-red-700',
 };
-
-function formatLabel(value: string) {
-    return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) =>
-        letter.toUpperCase(),
-    );
-}
 
 export default function MedicalCasesIndex({
     cases,
+    dashboard,
     filters,
     canManage,
 }: Props) {
@@ -62,43 +82,72 @@ export default function MedicalCasesIndex({
     const [status, setStatus] = useState(filters.status ?? '');
     const [priority, setPriority] = useState(filters.priority ?? '');
 
-   
-function applyFilters(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+    function applyFilters(event: React.FormEvent<HTMLFormElement>) {
+        event.preventDefault();
 
-    router.get(
-        '/medical-cases',
-        {
-            search: search.trim() || '',
-            status,
-            priority,
-            sort: filters.sort || 'created_at',
-            direction: filters.direction || 'desc',
-        },
-        {
-            preserveState: false,
-            preserveScroll: true,
-            replace: true,
-        },
-    );
-}
+        router.get(
+            '/medical-cases',
+            {
+                search: search.trim(),
+                status,
+                priority,
+                sort: filters.sort || 'created_at',
+                direction: filters.direction || 'desc',
+            },
+            {
+                preserveState: false,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    }
 
-function clearFilters() {
-    setSearch('');
-    setStatus('');
-    setPriority('');
+    function clearFilters() {
+        setSearch('');
+        setStatus('');
+        setPriority('');
 
-    router.get(
-        '/medical-cases',
-        {},
-        {
-            preserveState: false,
-            preserveScroll: true,
-            replace: true,
-        },
-    );
-}
+        router.get(
+            '/medical-cases',
+            {},
+            {
+                preserveState: false,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    }
 
+    function changeSort(column: string) {
+        const direction =
+            filters.sort === column && filters.direction === 'asc'
+                ? 'desc'
+                : 'asc';
+
+        router.get(
+            '/medical-cases',
+            {
+                search: search.trim(),
+                status,
+                priority,
+                sort: column,
+                direction,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    }
+
+    function sortLabel(column: string, label: string) {
+        if (filters.sort !== column) {
+            return label;
+        }
+
+        return `${label} ${filters.direction === 'asc' ? '↑' : '↓'}`;
+    }
 
     function deleteCase(id: number, caseNumber: string) {
         if (
@@ -169,43 +218,40 @@ function clearFilters() {
                             Medical Cases
                         </h2>
                         <p className="mt-2 text-sm text-slate-500">
-                            Manage and track patient cases from one place.
+                            Manage and track patient-specific implant cases.
                         </p>
                     </div>
 
-                    <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                         <StatCard
                             label="Total Cases"
-                            value={cases.total}
+                            value={dashboard.total}
                             icon="▤"
                             color="blue"
                         />
                         <StatCard
-                            label="Open Cases"
-                            value={cases.data.filter(
-                                (c) => c.status === 'open',
-                            ).length}
+                            label="Planning"
+                            value={dashboard.planning}
                             icon="◷"
                             color="amber"
-                            hint="On this page"
                         />
                         <StatCard
-                            label="In Progress"
-                            value={cases.data.filter(
-                                (c) => c.status === 'in_progress',
-                            ).length}
+                            label="In Review"
+                            value={dashboard.inReview}
                             icon="↗"
                             color="violet"
-                            hint="On this page"
                         />
                         <StatCard
-                            label="Closed Cases"
-                            value={cases.data.filter(
-                                (c) => c.status === 'closed',
-                            ).length}
+                            label="Approved"
+                            value={dashboard.approved}
                             icon="✓"
                             color="emerald"
-                            hint="On this page"
+                        />
+                        <StatCard
+                            label="Completed"
+                            value={dashboard.completed}
+                            icon="✓"
+                            color="emerald"
                         />
                     </section>
 
@@ -217,8 +263,8 @@ function clearFilters() {
                                         All Cases
                                     </h3>
                                     <p className="mt-1 text-sm text-slate-500">
-                                        Search, filter, and review medical
-                                        records.
+                                        Search by case number or surgeon, then
+                                        filter and sort the results.
                                     </p>
                                 </div>
 
@@ -233,39 +279,44 @@ function clearFilters() {
                             >
                                 <input
                                     value={search}
-                                    onChange={(e) =>
-                                        setSearch(e.target.value)
+                                    onChange={(event) =>
+                                        setSearch(event.target.value)
                                     }
-                                    placeholder="Search case, patient, condition..."
+                                    placeholder="Search case number or surgeon..."
+                                    aria-label="Search case number or surgeon"
                                     className="min-w-0 rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                                 />
 
                                 <select
                                     value={status}
-                                    onChange={(e) =>
-                                        setStatus(e.target.value)
+                                    onChange={(event) =>
+                                        setStatus(event.target.value)
                                     }
+                                    aria-label="Filter by status"
                                     className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500"
                                 >
                                     <option value="">All statuses</option>
-                                    <option value="open">Open</option>
-                                    <option value="in_progress">
-                                        In Progress
-                                    </option>
-                                    <option value="closed">Closed</option>
+                                    {statuses.map((item) => (
+                                        <option key={item} value={item}>
+                                            {item}
+                                        </option>
+                                    ))}
                                 </select>
 
                                 <select
                                     value={priority}
-                                    onChange={(e) =>
-                                        setPriority(e.target.value)
+                                    onChange={(event) =>
+                                        setPriority(event.target.value)
                                     }
+                                    aria-label="Filter by priority"
                                     className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500"
                                 >
                                     <option value="">All priorities</option>
-                                    <option value="low">Low</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="high">High</option>
+                                    {priorities.map((item) => (
+                                        <option key={item} value={item}>
+                                            {item}
+                                        </option>
+                                    ))}
                                 </select>
 
                                 <div className="flex gap-2">
@@ -287,26 +338,76 @@ function clearFilters() {
                         </div>
 
                         <div className="overflow-x-auto">
-                            <table className="w-full min-w-[850px] text-left text-sm">
+                            <table className="w-full min-w-[1050px] text-left text-sm">
                                 <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
                                     <tr>
                                         <th className="px-6 py-4 font-semibold">
-                                            Case
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    changeSort('case_number')
+                                                }
+                                            >
+                                                {sortLabel(
+                                                    'case_number',
+                                                    'Case Number',
+                                                )}
+                                            </button>
                                         </th>
                                         <th className="px-6 py-4 font-semibold">
-                                            Patient
+                                            Patient Reference
                                         </th>
                                         <th className="px-6 py-4 font-semibold">
-                                            Condition
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    changeSort('surgeon_name')
+                                                }
+                                            >
+                                                {sortLabel(
+                                                    'surgeon_name',
+                                                    'Surgeon',
+                                                )}
+                                            </button>
                                         </th>
                                         <th className="px-6 py-4 font-semibold">
-                                            Priority
+                                            Implant Type
                                         </th>
                                         <th className="px-6 py-4 font-semibold">
-                                            Status
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    changeSort('priority')
+                                                }
+                                            >
+                                                {sortLabel(
+                                                    'priority',
+                                                    'Priority',
+                                                )}
+                                            </button>
                                         </th>
                                         <th className="px-6 py-4 font-semibold">
-                                            Opened
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    changeSort('status')
+                                                }
+                                            >
+                                                {sortLabel('status', 'Status')}
+                                            </button>
+                                        </th>
+                                        <th className="px-6 py-4 font-semibold">
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    changeSort('surgery_date')
+                                                }
+                                            >
+                                                {sortLabel(
+                                                    'surgery_date',
+                                                    'Surgery Date',
+                                                )}
+                                            </button>
                                         </th>
                                         <th className="px-6 py-4 text-right font-semibold">
                                             Actions
@@ -330,11 +431,15 @@ function clearFilters() {
                                             </td>
 
                                             <td className="px-6 py-4 font-medium">
-                                                {medicalCase.patient_name}
+                                                {medicalCase.patient_reference}
+                                            </td>
+
+                                            <td className="px-6 py-4">
+                                                {medicalCase.surgeon_name}
                                             </td>
 
                                             <td className="max-w-56 truncate px-6 py-4 text-slate-600">
-                                                {medicalCase.condition}
+                                                {medicalCase.implant_type}
                                             </td>
 
                                             <td className="px-6 py-4">
@@ -346,9 +451,7 @@ function clearFilters() {
                                                         'bg-slate-100 text-slate-700'
                                                     }`}
                                                 >
-                                                    {formatLabel(
-                                                        medicalCase.priority,
-                                                    )}
+                                                    {medicalCase.priority}
                                                 </span>
                                             </td>
 
@@ -361,14 +464,17 @@ function clearFilters() {
                                                         'bg-slate-100 text-slate-700'
                                                     }`}
                                                 >
-                                                    {formatLabel(
-                                                        medicalCase.status,
-                                                    )}
+                                                    {medicalCase.status}
                                                 </span>
                                             </td>
 
                                             <td className="whitespace-nowrap px-6 py-4 text-slate-500">
-                                                {medicalCase.opened_at ?? '—'}
+                                                {medicalCase.surgery_date
+                                                    ? medicalCase.surgery_date.slice(
+                                                          0,
+                                                          10,
+                                                      )
+                                                    : '—'}
                                             </td>
 
                                             <td className="px-6 py-4">
@@ -411,7 +517,7 @@ function clearFilters() {
                                     {cases.data.length === 0 && (
                                         <tr>
                                             <td
-                                                colSpan={7}
+                                                colSpan={8}
                                                 className="px-6 py-16 text-center"
                                             >
                                                 <div className="text-3xl">
@@ -443,10 +549,11 @@ function clearFilters() {
                                         key={`${index}-${link.label}`}
                                         type="button"
                                         disabled={!link.url}
-                                        onClick={() =>
-                                            link.url &&
-                                            router.visit(link.url)
-                                        }
+                                        onClick={() => {
+                                            if (link.url) {
+                                                router.visit(link.url);
+                                            }
+                                        }}
                                         className={`min-w-9 rounded-lg border px-3 py-2 text-sm ${
                                             link.active
                                                 ? 'border-blue-600 bg-blue-600 text-white'
@@ -475,13 +582,11 @@ function StatCard({
     value,
     icon,
     color,
-    hint,
 }: {
     label: string;
     value: number;
     icon: string;
     color: string;
-    hint?: string;
 }) {
     const colors: Record<string, string> = {
         blue: 'bg-blue-50 text-blue-700',
@@ -502,10 +607,6 @@ function StatCard({
             </div>
 
             <p className="mt-4 text-3xl font-bold tracking-tight">{value}</p>
-
-            {hint && (
-                <p className="mt-1 text-xs text-slate-400">{hint}</p>
-            )}
         </div>
     );
 }

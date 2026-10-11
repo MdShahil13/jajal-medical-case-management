@@ -12,15 +12,12 @@ class MedicalCase extends Model
 
     protected $fillable = [
         'case_number',
-        'patient_name',
-        'patient_email',
-        'patient_phone',
-        'condition',
-        'description',
+        'patient_reference',
+        'surgeon_name',
+        'implant_type',
         'status',
         'priority',
-        'opened_at',
-        'closed_at',
+        'surgery_date',
         'assigned_to',
         'created_by',
     ];
@@ -28,8 +25,7 @@ class MedicalCase extends Model
     protected function casts(): array
     {
         return [
-            'opened_at' => 'date',
-            'closed_at' => 'date',
+            'surgery_date' => 'date',
         ];
     }
 
