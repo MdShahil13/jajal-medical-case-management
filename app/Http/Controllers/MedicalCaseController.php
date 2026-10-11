@@ -62,20 +62,27 @@ class MedicalCaseController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        return Inertia::render('medical-cases/index', [
-            'cases' => $cases,
-            'filters' => $request->only([
-                'search',
-                'status',
-                'priority',
-                'sort',
-                'direction',
-            ]),
-            'canManage' => $request->user()->can(
-                'create',
-                MedicalCase::class
-            ),
-        ]);
+       return Inertia::render('medical-cases/index', [
+    'cases' => $cases,
+    'dashboard' => [
+        'total' => MedicalCase::count(),
+        'planning' => MedicalCase::where('status', 'Planning')->count(),
+        'inReview' => MedicalCase::where('status', 'In Review')->count(),
+        'approved' => MedicalCase::where('status', 'Approved')->count(),
+        'completed' => MedicalCase::where('status', 'Completed')->count(),
+    ],
+    'filters' => $request->only([
+        'search',
+        'status',
+        'priority',
+        'sort',
+        'direction',
+    ]),
+    'canManage' => $request->user()->can(
+        'create',
+        MedicalCase::class
+    ),
+]);
     }
 
     public function create(Request $request): Response

@@ -2,16 +2,23 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\JsonResponse;
+use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
-use App\Models\User;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class AuthController extends Controller
 {
-    public function login(Request $request): JsonResponse
+    public function showLogin(): Response
+    {
+        return Inertia::render('auth/login');
+    }
+
+    public function login(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'email' => ['required', 'email'],
@@ -26,26 +33,19 @@ class AuthController extends Controller
             ]);
         }
 
-        $token = $user->createToken('medical-case-api')->plainTextToken;
+        Auth::login($user);
+        $request->session()->regenerate();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Login successful.',
-            'data' => [
-                'user' => $user->only('id', 'name', 'email', 'role'),
-                'token' => $token,
-            ],
-        ], 200);
+        return redirect()->intended(route('medical-cases.index'));
     }
 
-    public function logout(Request $request): JsonResponse
+    public function logout(Request $request): RedirectResponse
     {
-        $request->user()->currentAccessToken()?->delete();
+        Auth::logout();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Logout successful.',
-            'data' => null,
-        ]);
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login');
     }
 }
